@@ -1,0 +1,92 @@
+/*
+Rotary Phone Dial Reader
+
+This sketch reads out the number dialed on a rotary phone dial.
+
+The rotary dial has two signals: 
+            1) turns ON when the wheel is turning
+            2) pulses a count based on the number dialed.
+
+The results are printed to the serial monitor.
+
+ Supplies:
+   * Teensy 3.0
+   * Deconstructed rotary phone
+
+ The circuit: 
+   * ON/OFF "switch" wires attached from PIN 12 to GND 
+   * PULSE wires attached from PIN 11 to GND
+
+Since it's readong an analog signal, there's a bit of "bounce" in each pulse.
+The code adjusts for that using the "debounce" method. You can adjust the
+amount of delay in "debounceDelay" if you get read errors.
+
+Made by LIANA, with help from NAIM, with some borrowed code from ARDUINO EXAMPLES.
+2014 Feb 13
+
+ */
+
+#define INITPIN 12
+#define NUMPIN 11
+
+int counter; // holds the pulse count for each dial spin
+int currentValue = 0; 
+long lastDebounceTime = 0;  // the last time the output pin was toggled
+long debounceDelay = 5;    // the debounce time; increase if the output flickers
+
+
+
+void setup(){
+  //start serial connection
+  Serial.begin(9600);
+  // configure the two inputs, and the onboard LED.
+  pinMode(INITPIN, INPUT_PULLUP);
+  pinMode(NUMPIN, INPUT_PULLUP);
+
+}
+
+void loop(){
+  int initRead = digitalRead (INITPIN); // Is the wheel turning or not?
+  static int lastValue = HIGH;  // holds the last read from the pulse pin.
+
+  if (initRead == LOW) {  // If the wheel is turning....
+    int newValue = digitalRead (NUMPIN); // check the pulse pin.
+    if (newValue != lastValue) { // if it's CHANGED from the last read...
+      lastDebounceTime = millis(); // save its clock cycle; we need to check it.
+    }
+    // If enough time has passed (aka, it's not just a "bounce" from the 
+    // analog signal)...
+    if ((millis() - lastDebounceTime) > debounceDelay) { 
+      // and if the current value is DIFFERENT than the one you just read...
+      if (currentValue != newValue) { 
+        currentValue = newValue; // make them the same.
+        if (newValue == 1) { // If you just set it to a 1...
+          counter++; // it just finished a pulse, so add one to the counter.
+        }
+      }
+    }
+
+    lastValue = newValue; // Your new value becomes the old one for comparison.
+
+  } else {
+// once the dial returns home and switches the initializing pin OFF,
+// you can be sure that there will be no more pulses coming.
+// "Counter" is the number dialed. You may now use it for whatever you want.
+// This is adjusted for the special case of "0" actually being 10 pulses.
+    if (counter > 0) {
+      if (counter == 10) {
+        Serial.println (0);
+      } else {
+        Serial.println (counter);
+      }
+    }
+// After you're done using it, reset counter so it can start again on the
+// next dial.
+    counter = 0;
+  }  
+}
+
+
+
+
+
